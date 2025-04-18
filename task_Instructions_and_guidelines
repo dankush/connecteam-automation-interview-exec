@@ -1,0 +1,38 @@
+To Setup this repo on your local machine, follow the steps in the README.md file in the root directory.
+Please note that this is a skeleton project and you can choose not to use it, and use your own project.
+
+The task:
+
+Create one test that preforms the following steps:
+1. Navigate to https://connecteam.com/
+2. Scroll down and click on 'careers' in the footer
+3. Select R&D from the left dropdown
+4. For all of the positions in the R&D (that are marked 'apply now'), perform the following
+    a. click on 'Apply now'
+    b. On the form that appears in the right side fill the following details:
+        1. First name
+        2. Last name
+        3. Email
+        4. Phone
+        5. CV file upload - please use the pdf example you have in the root of the project (example_cv.pdf)
+        Please dont click on submit application cause it will trigger a recaptcha!!
+
+Important!, some positions may have been removed from the web site . in that case you may skip filling the details for that position and move to the next one, see the removed_position_example.png in the root of the project.
+
+Feel free to use the video recording of the theses steps in this video link:
+
+https://connecteam-public.s3.eu-west-1.amazonaws.com/qa_automation/interview/task_instructions_recording.mp4
+
+After you are finished with the task please upload it to a google drive folder and share the link with the following email:
+
+orw@connecteam.com
+
+
+Several guidelines:
+
+1. The code must run on both windows and linux machines
+2. Use automation code best practices as much as possible - i.e design patterns, clean code, etc.
+Feel free to email orw@connecteam.com  if you have any questions
+3. Please note! The code should be considered as 'production ready' code as much as possible
+
+Good luck !!
