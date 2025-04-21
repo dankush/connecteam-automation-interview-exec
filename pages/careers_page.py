@@ -42,6 +42,11 @@ class CareersPage(BasePage):
         description="Apply now link"
     )
     
+    JOB_TITLE = ElementInfo(
+        locator=(By.CSS_SELECTOR, "td.title"),
+        description="Job title cell"
+    )
+    
     NO_RESULTS_MESSAGE = ElementInfo(
         locator=(By.CSS_SELECTOR, "div.no-results-message"),
         description="No results message"

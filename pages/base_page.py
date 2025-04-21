@@ -32,13 +32,15 @@ class BasePage:
             return element_info.locator, element_info.description
         return element_info, str(element_info)
     
-    def _find_element(self, element_info: Union[ElementInfo, Tuple], timeout: int = None) -> Optional[WebElement]:
-        """Find a single element with explicit wait and robust error handling"""
+    def _find_element(self, element_info: Union[ElementInfo, Tuple, WebElement], timeout: int = None) -> Optional[WebElement]:
+        """Find a single element with explicit wait and robust error handling. If already a WebElement, return it."""
+        if hasattr(element_info, 'is_displayed') and callable(element_info.is_displayed):
+            # Already a WebElement
+            return element_info
         locator, desc = self._get_locator_and_desc(element_info)
         wait_time = timeout if timeout else (
             element_info.timeout if isinstance(element_info, ElementInfo) else self.timeout
         )
-        
         try:
             element = self.wait.until(EC.presence_of_element_located(locator))
             self.logger.debug(f"Found element: {desc}")
@@ -49,9 +51,13 @@ class BasePage:
         except Exception as e:
             self.logger.error(f"Error finding element {desc}: {str(e)}")
             return None
+
     
-    def _find_elements(self, element_info: Union[ElementInfo, Tuple]) -> List[WebElement]:
-        """Find multiple elements with explicit wait and error handling"""
+    def _find_elements(self, element_info: Union[ElementInfo, Tuple, WebElement]) -> List[WebElement]:
+        """Find multiple elements with explicit wait and error handling. If already a WebElement, return as single-item list."""
+        if hasattr(element_info, 'is_displayed') and callable(element_info.is_displayed):
+            # Already a WebElement
+            return [element_info]
         locator, desc = self._get_locator_and_desc(element_info)
         try:
             elements = self.wait.until(EC.presence_of_all_elements_located(locator))
@@ -63,6 +69,7 @@ class BasePage:
         except Exception as e:
             self.logger.error(f"Error finding elements {desc}: {str(e)}")
             return []
+
     
     def _click(self, element_info: Union[ElementInfo, Tuple]):
         """Click an element with retry mechanism"""

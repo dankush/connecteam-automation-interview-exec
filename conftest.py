@@ -1,56 +1,133 @@
 import pytest
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.firefox.service import Service as FirefoxService
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.firefox import GeckoDriverManager
+import os
+import logging
+import time
+from typing import Generator
+from selenium.webdriver.remote.webdriver import WebDriver
+from utils.driver_factory import DriverFactory
+from utils.logger import setup_logger, LogContext
+from config.config import Config
 
-def pytest_addoption(parser):
-    """Add command line option for browser selection"""
+
+def pytest_addoption(parser) -> None:
+    """Add command line options for test configuration.
+    
+    Args:
+        parser: pytest command line parser
+    """
     parser.addoption(
         "--browser",
         action="store",
         default="chrome",
         help="Browser to run tests on: chrome or firefox"
     )
+    parser.addoption(
+        "--headless",
+        action="store_true",
+        default=None,
+        help="Run browser in headless mode"
+    )
+    parser.addoption(
+        "--logging-level",
+        action="store",
+        default="INFO",
+        help="Set logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL"
+    )
+    parser.addoption(
+        "--strategy",
+        action="store",
+        default="standard",
+        help="Test execution strategy: standard, parallel"
+    )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_logging(request) -> None:
+    """Set up logging for the test session.
+    
+    Args:
+        request: pytest request object
+    """
+    log_level = request.config.getoption("--logging-level")
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+    
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    log_file = f"{log_dir}/test-run-{timestamp}.log"
+    
+    setup_logger(log_level, log_file)
+    logging.info(f"Test session started with log level {log_level}")
+
 
 @pytest.fixture(scope="session")
-def browser(request):
-    """Get browser from command line option"""
+def browser(request) -> str:
+    """Get browser type from command line option.
+    
+    Args:
+        request: pytest request object
+        
+    Returns:
+        Browser type string
+    """
     return request.config.getoption("--browser").lower()
 
-@pytest.fixture(autouse=True)
-def driver(browser):
-    """Setup WebDriver based on browser choice"""
-    if browser == "chrome":
-        options = webdriver.ChromeOptions()
-        options.add_argument("--incognito")
-        options.add_argument("--allow-running-insecure-content")
-        options.add_argument("--start-maximized")
-        
-        try:
-            service = ChromeService()
-            web_driver = webdriver.Chrome(service=service, options=options)
-        except Exception:
-            downloaded_binary_path = ChromeDriverManager().install()
-            service = ChromeService(executable_path=downloaded_binary_path)
-            web_driver = webdriver.Chrome(service=service, options=options)
-            
-    elif browser == "firefox":
-        options = webdriver.FirefoxOptions()
-        options.add_argument("--private")
-        
-        try:
-            service = FirefoxService()
-            web_driver = webdriver.Firefox(service=service, options=options)
-        except Exception:
-            downloaded_binary_path = GeckoDriverManager().install()
-            service = FirefoxService(executable_path=downloaded_binary_path)
-            web_driver = webdriver.Firefox(service=service, options=options)
-            
-    else:
-        raise ValueError(f"Unsupported browser: {browser}")
+
+@pytest.fixture(scope="session")
+def strategy(request) -> str:
+    """Get test execution strategy from command line option.
     
-    web_driver.maximize_window()
-    yield web_driver
-    web_driver.quit()
+    Args:
+        request: pytest request object
+        
+    Returns:
+        Strategy type string
+    """
+    return request.config.getoption("--strategy").lower()
+
+
+@pytest.fixture(scope="session")
+def config(request) -> Config:
+    """Get configuration with command line overrides.
+    
+    Args:
+        request: pytest request object
+        
+    Returns:
+        Config instance
+    """
+    config = Config()
+    
+    # Override config with command line options if provided
+    headless = request.config.getoption("--headless")
+    if headless is not None:
+        config.HEADLESS = headless
+    
+    return config
+
+
+@pytest.fixture
+def driver(browser, config) -> Generator[WebDriver, None, None]:
+    """Set up and tear down WebDriver for tests.
+    
+    Args:
+        browser: Browser type from browser fixture
+        config: Config instance from config fixture
+        
+    Yields:
+        WebDriver instance
+    """
+    # Create driver using factory pattern
+    with LogContext(browser=browser, headless=config.HEADLESS):
+        logging.info(f"Creating {browser} WebDriver")
+        web_driver = DriverFactory.create_driver(browser)
+        
+        # Set up driver
+        web_driver.maximize_window()
+        web_driver.set_page_load_timeout(config.TIMEOUT)
+        
+        # Provide driver to test
+        yield web_driver
+        
+        # Clean up
+        logging.info("Closing WebDriver")
+        web_driver.quit()
