@@ -38,9 +38,7 @@ ENV/
 .coverage
 htmlcov/
 
-# Test resources
-resources/example_cv.pdf
 
 # Logs
 logs/
-*.log 
+*.log resources/record_project_run_simulation.mov
