@@ -4,56 +4,42 @@ import logging
 import os
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.remote.webdriver import WebDriver
-from pages.home_page import HomePage
-from pages.careers_page import CareersPage
-from pages.position_page import PositionPage
 from config.config import DEFAULT_FIRST_NAME, DEFAULT_LAST_NAME, DEFAULT_EMAIL, DEFAULT_PHONE, CV_FILE_PATH
+# Import fixtures
+from tests.fixtures.page_fixtures import home_page, careers_page, position_page, test_logger
 
-@pytest.mark.usefixtures("driver")
+@pytest.mark.usefixtures("driver", "home_page", "careers_page", "position_page", "test_logger")
 class TestCareerApplication:
     """Test suite for career application process."""
-    
-    @pytest.fixture(autouse=True)
-    def setup(self, driver: WebDriver):
-        """Setup test environment.
+
+    def _take_screenshot(self, driver, name: str) -> None:
+        """Take a screenshot of the current page.
         
         Args:
             driver: WebDriver instance
-        """
-        self.logger = logging.getLogger(__name__)
-        self.home_page = HomePage(driver)
-        self.careers_page = CareersPage(driver)
-        self.position_page = PositionPage(driver)
-        self.driver = driver
-
-    def _take_screenshot(self, name: str) -> None:
-        """Take a screenshot of Fix errorthe current page.
-        
-        Args:
             name: Name to use for the screenshot file
         """
         try:
-            timestamp = time.strftime("%Y%m%d-%H%M%S")
-            filename = f"screenshots/{name}_{timestamp}.png"
-            os.makedirs("screenshots", exist_ok=True)
-            self.driver.save_screenshot(filename)
-            self.logger.info(f"Screenshot saved: {filename}")
+            filename = f"screenshots/{name}_{time.strftime('%Y%m%d-%H%M%S')}.png"
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            driver.save_screenshot(filename)
+            logging.info(f"Screenshot saved: {filename}")
         except Exception as e:
-            self.logger.error(f"Failed to take screenshot: {str(e)}")
+            logging.error(f"Failed to take screenshot: {str(e)}")
 
-    def test_apply_for_rd_positions(self):
+    def test_apply_for_rd_positions(self, driver, home_page, careers_page, position_page, test_logger):
         """Test applying for all R&D positions following the exercise instructions"""
-        self.logger.info("=== Starting R&D Positions Application Test ===")
+        test_logger.info("=== Starting R&D Positions Application Test ===")
         
         try:
             # Step 1: Navigate to https://connecteam.com/
-            self.logger.info("Step 1: Navigating to Connecteam homepage")
-            self.home_page.navigate_to_home()
+            test_logger.info("Step 1: Navigating to Connecteam homepage")
+            home_page.navigate_to_home()
             
             # Step 2: Scroll down and click on 'careers' in the footer
-            self.logger.info("Step 2: Navigating to careers page")
-            if not self.home_page.scroll_to_and_click_careers():
-                self._take_screenshot("careers_navigation_failed")
+            test_logger.info("Step 2: Navigating to careers page")
+            if not home_page.scroll_to_and_click_careers():
+                self._take_screenshot(driver, "careers_navigation_failed")
                 pytest.fail("Failed to navigate to careers page")
             
             # Wait for careers page to fully load
@@ -61,49 +47,49 @@ class TestCareerApplication:
             
             # Step 3: Select R&D from the left dropdown
             from config.config import DEFAULT_TARGET_DEPARTMENT
-            self.logger.info(f"Step 3: Selecting department: {DEFAULT_TARGET_DEPARTMENT}")
-            if not self.careers_page.select_department(DEFAULT_TARGET_DEPARTMENT):
-                self._take_screenshot("department_selection_failed")
+            test_logger.info(f"Step 3: Selecting department: {DEFAULT_TARGET_DEPARTMENT}")
+            if not careers_page.select_department(DEFAULT_TARGET_DEPARTMENT):
+                self._take_screenshot(driver, "department_selection_failed")
                 pytest.skip(f"No {DEFAULT_TARGET_DEPARTMENT} positions currently visible")
             
             # Wait for department filter to apply
             time.sleep(1)
             
             # Get all available positions
-            positions = self.careers_page.get_applyable_positions()
+            positions = careers_page.get_applyable_positions()
             if not positions:
-                self._take_screenshot("no_positions_found")
+                self._take_screenshot(driver, "no_positions_found")
                 pytest.skip(f"No {DEFAULT_TARGET_DEPARTMENT} positions available to apply for")
             
             total_positions = len(positions)
-            self.logger.info(f"Found {total_positions} R&D positions to process")
+            test_logger.info(f"Found {total_positions} R&D positions to process")
             
             successful = 0
             failed = 0
             skipped = 0
             
             # Step 4: For all positions in R&D (marked 'apply now'), perform the following
-            self.logger.info("Step 4: Processing all R&D positions")
+            test_logger.info("Step 4: Processing all R&D positions")
             
             # Process each position one by one
             for i in range(total_positions):
-                self.logger.info(f"\nProcessing position {i+1}/{total_positions}")
+                test_logger.info(f"\nProcessing position {i+1}/{total_positions}")
                 
                 # Get fresh positions list before each application
-                fresh_positions = self.careers_page.get_applyable_positions()
+                fresh_positions = careers_page.get_applyable_positions()
                 if not fresh_positions or i >= len(fresh_positions):
-                    self.logger.warning(f"Position {i+1} no longer available, skipping")
+                    test_logger.warning(f"Position {i+1} no longer available, skipping")
                     skipped += 1
                     continue
                 
                 try:
                     # Step 4a: Click on 'Apply now'
-                    self.logger.info(f"Clicking 'Apply now' for position {i+1}")
+                    test_logger.info(f"Clicking 'Apply now' for position {i+1}")
                     
                     # Use the CV file path from config as specified in instructions
                     # Do not submit the form as per instructions
                     from config.config import DEFAULT_FIRST_NAME, DEFAULT_LAST_NAME, DEFAULT_EMAIL, DEFAULT_PHONE, CV_FILE_PATH
-                    result = self.careers_page.apply_for_position(
+                    result = careers_page.apply_for_position(
                         position=fresh_positions[i],
                         first_name=DEFAULT_FIRST_NAME,
                         last_name=DEFAULT_LAST_NAME,
@@ -114,57 +100,57 @@ class TestCareerApplication:
                     
                     if result:
                         successful += 1
-                        self.logger.info(f"✓ Successfully applied to position {i+1}")
+                        test_logger.info(f"✓ Successfully applied to position {i+1}")
                     else:
                         failed += 1
-                        self.logger.warning(f"✗ Failed to apply to position {i+1}")
-                        self._take_screenshot(f"position_{i+1}_failed")
+                        test_logger.warning(f"✗ Failed to apply to position {i+1}")
+                        self._take_screenshot(driver, f"position_{i+1}_failed")
                     
                     # Return to all positions list after each application
-                    self.logger.info("Returning to all positions list")
-                    if not self.position_page.return_to_all_positions():
-                        self.logger.warning("Could not return to positions list, trying to continue...")
+                    test_logger.info("Returning to all positions list")
+                    if not position_page.return_to_all_positions():
+                        test_logger.warning("Could not return to positions list, trying to continue...")
                         # Try to navigate back to careers page as fallback
-                        self.home_page.navigate_to_home()
-                        self.home_page.scroll_to_and_click_careers()
-                        self.careers_page.select_department(self.config.TARGET_DEPARTMENT)
+                        home_page.navigate_to_home()
+                        home_page.scroll_to_and_click_careers()
+                        careers_page.select_department(DEFAULT_TARGET_DEPARTMENT)
                     
                     # Wait for the positions list to reload
                     time.sleep(2)
                 except Exception as e:
                     failed += 1
-                    self.logger.error(f"Error processing position {i+1}: {str(e)}")
-                    self._take_screenshot(f"position_{i+1}_exception")
+                    test_logger.error(f"Error processing position {i+1}: {str(e)}")
+                    self._take_screenshot(driver, f"position_{i+1}_exception")
                     
                     # Try to recover and continue with next position
                     try:
-                        self.position_page.close_form()
-                        self.position_page.return_to_all_positions()
+                        position_page.close_form()
+                        position_page.return_to_all_positions()
                     except Exception:
                         # Last resort - go back to careers page
-                        self.home_page.navigate_to_home()
-                        self.home_page.scroll_to_and_click_careers()
-                        self.careers_page.select_department(self.config.TARGET_DEPARTMENT)
+                        home_page.navigate_to_home()
+                        home_page.scroll_to_and_click_careers()
+                        careers_page.select_department(DEFAULT_TARGET_DEPARTMENT)
                     
                     time.sleep(2)
             
             # Log detailed results
-            self.logger.info("\n=== Test Summary ===")
-            self.logger.info(f"Total positions found: {total_positions}")
-            self.logger.info(f"Successfully applied: {successful}")
-            self.logger.info(f"Failed applications: {failed}")
-            self.logger.info(f"Skipped positions: {skipped}")
+            test_logger.info("\n=== Test Summary ===")
+            test_logger.info(f"Total positions found: {total_positions}")
+            test_logger.info(f"Successfully applied: {successful}")
+            test_logger.info(f"Failed applications: {failed}")
+            test_logger.info(f"Skipped positions: {skipped}")
             
             # Test is successful if we were able to process at least one position
             if total_positions > 0 and (successful + failed) == 0:
                 pytest.fail("Could not process any positions")
             
         except Exception as e:
-            self.logger.error(f"Unexpected error in test: {str(e)}")
-            self._take_screenshot("unexpected_error")
+            test_logger.error(f"Unexpected error in test: {str(e)}")
+            self._take_screenshot(driver, "unexpected_error")
             pytest.fail(f"Test failed with unexpected error: {str(e)}")
 
-    def _fill_form_with_js(self, first_name: str, last_name: str, email: str, phone: str, cv_path: str) -> None:
+    def _fill_form_with_js(self, driver, test_logger, first_name: str, last_name: str, email: str, phone: str, cv_path: str) -> None:
         """Fill form fields using JavaScript for maximum reliability."""
         # Wait for form to be fully loaded
         try:
@@ -179,9 +165,9 @@ class TestCareerApplication:
             iframe = None
             for selector in iframe_selectors:
                 try:
-                    iframe = self.wait.until(EC.presence_of_element_located(selector))
+                    iframe = WebDriverWait(driver, 10).until(EC.presence_of_element_located(selector))
                     if iframe:
-                        self.logger.info(f"Found iframe using selector: {selector}")
+                        test_logger.info(f"Found iframe using selector: {selector}")
                         break
                 except Exception:
                     continue
@@ -189,10 +175,10 @@ class TestCareerApplication:
             if not iframe:
                 raise Exception("No iframe found after trying multiple selectors")
                 
-            self.driver.switch_to.frame(iframe)
-            self.logger.info("Switched to application iframe")
+            driver.switch_to.frame(iframe)
+            test_logger.info("Switched to application iframe")
         except Exception as e:
-            self.logger.error(f"Error switching to iframe: {str(e)}")
+            test_logger.error(f"Error switching to iframe: {str(e)}")
             raise
             
         # Fill form fields using JavaScript with enhanced reliability
@@ -254,16 +240,16 @@ class TestCareerApplication:
         return filled;
         """
         
-        result = self.driver.execute_script(script, first_name, last_name, email, phone)
-        self.logger.info("Filled form fields using JavaScript")
+        result = driver.execute_script(script, first_name, last_name, email, phone)
+        test_logger.info("Filled form fields using JavaScript")
         
         # Log the results if available
         if isinstance(result, dict):
             for field, success in result.items():
                 if success:
-                    self.logger.info(f"Successfully filled {field}")
+                    test_logger.info(f"Successfully filled {field}")
                 else:
-                    self.logger.warning(f"Failed to fill {field} using JavaScript")
+                    test_logger.warning(f"Failed to fill {field} using JavaScript")
         
         # Upload CV
         try:
@@ -278,17 +264,17 @@ class TestCareerApplication:
             file_input = None
             for selector in file_selectors:
                 try:
-                    file_input = self.driver.find_element(*selector)
+                    file_input = driver.find_element(*selector)
                     if file_input:
-                        self.logger.info(f"Found file input using selector: {selector}")
+                        test_logger.info(f"Found file input using selector: {selector}")
                         break
                 except Exception:
                     continue
             
             if not file_input:
-                self.logger.warning("Could not find file input, trying direct JavaScript approach")
+                test_logger.warning("Could not find file input, trying direct JavaScript approach")
                 # Try to create a file input if none exists
-                self.driver.execute_script("""
+                driver.execute_script("""
                     if (!document.getElementById('resume')) {
                         const input = document.createElement('input');
                         input.id = 'resume';
@@ -297,10 +283,10 @@ class TestCareerApplication:
                         document.body.appendChild(input);
                     }
                 """)
-                file_input = self.driver.find_element(By.ID, "resume")
+                file_input = driver.find_element(By.ID, "resume")
             
             # Make file input visible and interactable
-            self.driver.execute_script("""
+            driver.execute_script("""
                 arguments[0].style.display = 'block';
                 arguments[0].style.visibility = 'visible';
                 arguments[0].style.opacity = '1';
@@ -313,42 +299,42 @@ class TestCareerApplication:
             # Set the file path
             absolute_path = os.path.abspath(cv_path)
             file_input.send_keys(absolute_path)
-            self.logger.info(f"Uploaded CV from: {absolute_path}")
+            test_logger.info(f"Uploaded CV from: {absolute_path}")
         except Exception as e:
-            self.logger.error(f"Error uploading CV: {str(e)}")
+            test_logger.error(f"Error uploading CV: {str(e)}")
             
         # Try to handle additional form elements
         try:
             # Handle on-site work question if present
             try:
                 # Click on the dropdown
-                dropdown = self.driver.find_element(By.CSS_SELECTOR, ".select__control")
-                self.driver.execute_script("arguments[0].click();", dropdown)
+                dropdown = driver.find_element(By.CSS_SELECTOR, ".select__control")
+                driver.execute_script("arguments[0].click();", dropdown)
                 time.sleep(0.5)
                 
                 # Select 'Yes' option
-                yes_option = self.driver.find_element(By.CSS_SELECTOR, "div[id^='react-select'][id$='-option-0']")
-                self.driver.execute_script("arguments[0].click();", yes_option)
-                self.logger.info("Selected 'Yes' for on-site work question")
+                yes_option = driver.find_element(By.CSS_SELECTOR, "div[id^='react-select'][id$='-option-0']")
+                driver.execute_script("arguments[0].click();", yes_option)
+                test_logger.info("Selected 'Yes' for on-site work question")
             except Exception as e:
-                self.logger.debug(f"No on-site work dropdown found or error selecting option: {str(e)}")
+                test_logger.debug(f"No on-site work dropdown found or error selecting option: {str(e)}")
         except Exception as e:
-            self.logger.debug(f"Error handling additional form elements: {str(e)}")
+            test_logger.debug(f"Error handling additional form elements: {str(e)}")
             
-    def _close_form(self) -> None:
+    def _close_form(self, driver, test_logger) -> None:
         """Close the application form using multiple methods for reliability."""
         try:
             # Try different methods to close the form
             methods = [
                 # Method 1: Click close button
-                lambda: self.driver.find_element(By.CSS_SELECTOR, "button[aria-label='Close']").click(),
+                lambda: driver.find_element(By.CSS_SELECTOR, "button[aria-label='Close']").click(),
                 # Method 2: Use JavaScript
-                lambda: self.driver.execute_script(
+                lambda: driver.execute_script(
                     "const closeBtn = document.querySelector('button[aria-label=\"Close\"');" 
                     "if (closeBtn) closeBtn.click();"
                 ),
                 # Method 3: Press Escape key
-                lambda: self.driver.execute_script(
+                lambda: driver.execute_script(
                     "document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Escape'}))"
                 )
             ]
@@ -356,41 +342,41 @@ class TestCareerApplication:
             for method in methods:
                 try:
                     method()
-                    self.logger.info("Closed form")
+                    test_logger.info("Closed form")
                     time.sleep(1)  # Wait for form to close
                     return
                 except Exception:
                     continue
                     
-            self.logger.warning("Could not close form with any method")
+            test_logger.warning("Could not close form with any method")
             
         except Exception as e:
-            self.logger.error(f"Error closing form: {str(e)}")
+            test_logger.error(f"Error closing form: {str(e)}")
     
-    def _return_to_careers_page(self) -> None:
+    def _return_to_careers_page(self, driver, home_page, careers_page, test_logger) -> None:
         """Return to the careers page and reselect the department."""
         try:
             # Try to find and click the 'All open positions' link
             try:
-                back_link = self.wait.until(EC.element_to_be_clickable(
+                back_link = WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
                     (By.CSS_SELECTOR, "a.section-careers-single-back")
                 ))
-                self.driver.execute_script("arguments[0].click();", back_link)
-                self.logger.info("Clicked 'All open positions' link")
+                driver.execute_script("arguments[0].click();", back_link)
+                test_logger.info("Clicked 'All open positions' link")
                 time.sleep(2)
             except Exception:
                 # If link not found, navigate back to careers page
-                self.logger.info("'All open positions' link not found, navigating back to careers page")
-                self.home_page.navigate_to_home()
-                self.home_page.scroll_to_and_click_careers()
+                test_logger.info("'All open positions' link not found, navigating back to careers page")
+                home_page.navigate_to_home()
+                home_page.scroll_to_and_click_careers()
             
             # Reselect department
-            self.careers_page.select_department(self.config.TARGET_DEPARTMENT)
+            careers_page.select_department(DEFAULT_TARGET_DEPARTMENT)
             time.sleep(2)  # Wait for positions to load
             
         except Exception as e:
-            self.logger.error(f"Error returning to careers page: {str(e)}")
+            test_logger.error(f"Error returning to careers page: {str(e)}")
             # Last resort - go back to homepage and navigate to careers
-            self.home_page.navigate_to_home()
-            self.home_page.scroll_to_and_click_careers()
-            self.careers_page.select_department(self.config.TARGET_DEPARTMENT)
+            home_page.navigate_to_home()
+            home_page.scroll_to_and_click_careers()
+            careers_page.select_department(DEFAULT_TARGET_DEPARTMENT)
