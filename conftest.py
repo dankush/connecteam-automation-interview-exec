@@ -6,7 +6,7 @@ from typing import Generator
 from selenium.webdriver.remote.webdriver import WebDriver
 from utils.driver_factory import DriverFactory
 from utils.logger import setup_logger, LogContext
-from config.config import Config
+from config.config import BASE_URL, HEADLESS, TIMEOUT, SCREENSHOT_DIR
 
 
 def pytest_addoption(parser) -> None:
@@ -86,27 +86,7 @@ def strategy(request) -> str:
 
 
 @pytest.fixture(scope="session")
-def config(request) -> Config:
-    """Get configuration with command line overrides.
-    
-    Args:
-        request: pytest request object
-        
-    Returns:
-        Config instance
-    """
-    config = Config()
-    
-    # Override config with command line options if provided
-    headless = request.config.getoption("--headless")
-    if headless is not None:
-        config.HEADLESS = headless
-    
-    return config
-
-
-@pytest.fixture
-def driver(browser, config) -> Generator[WebDriver, None, None]:
+def driver(browser) -> Generator[WebDriver, None, None]:
     """Set up and tear down WebDriver for tests.
     
     Args:
@@ -117,13 +97,14 @@ def driver(browser, config) -> Generator[WebDriver, None, None]:
         WebDriver instance
     """
     # Create driver using factory pattern
-    with LogContext(browser=browser, headless=config.HEADLESS):
+    from config.config import HEADLESS, TIMEOUT
+    with LogContext(browser=browser, headless=HEADLESS):
         logging.info(f"Creating {browser} WebDriver")
         web_driver = DriverFactory.create_driver(browser)
         
         # Set up driver
         web_driver.maximize_window()
-        web_driver.set_page_load_timeout(config.TIMEOUT)
+        web_driver.set_page_load_timeout(TIMEOUT)
         
         # Provide driver to test
         yield web_driver

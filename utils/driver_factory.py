@@ -7,7 +7,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.firefox.service import Service as FirefoxService
 import platform
 import logging
-from config.config import Config
+from config.config import HEADLESS, TIMEOUT
 
 
 class DriverFactory:
@@ -31,26 +31,26 @@ class DriverFactory:
         Raises:
             ValueError: If an unsupported browser type is specified
         """
-        config = Config()
+        # config variables imported at module level
         logger = logging.getLogger(__name__)
         
         browser_type = browser_type.lower()
-        logger.info(f"Creating {browser_type} driver (headless: {config.HEADLESS})")
+        logger.info(f"Creating {browser_type} driver (headless: {HEADLESS})")
         
         if browser_type == "chrome":
-            return DriverFactory._create_chrome_driver(config)
+            return DriverFactory._create_chrome_driver()
         elif browser_type == "firefox":
-            return DriverFactory._create_firefox_driver(config)
+            return DriverFactory._create_firefox_driver()
         else:
             raise ValueError(f"Unsupported browser type: {browser_type}")
     
     @staticmethod
-    def _create_chrome_driver(config: Config) -> webdriver.Chrome:
+    def _create_chrome_driver() -> webdriver.Chrome:
         """Create a Chrome WebDriver instance."""
         options = ChromeOptions()
         
         # Set headless mode if configured
-        if config.HEADLESS:
+        if HEADLESS:
             options.add_argument("--headless")
         
         # Common options for stability
@@ -66,19 +66,19 @@ class DriverFactory:
         
         # Create and return the driver
         driver = webdriver.Chrome(options=options)
-        driver.set_page_load_timeout(config.TIMEOUT)
+        driver.set_page_load_timeout(TIMEOUT)
         return driver
     
     @staticmethod
-    def _create_firefox_driver(config: Config) -> webdriver.Firefox:
+    def _create_firefox_driver() -> webdriver.Firefox:
         """Create a Firefox WebDriver instance."""
         options = FirefoxOptions()
         
         # Set headless mode if configured
-        if config.HEADLESS:
+        if HEADLESS:
             options.add_argument("--headless")
         
         # Create and return the driver
         driver = webdriver.Firefox(options=options)
-        driver.set_page_load_timeout(config.TIMEOUT)
+        driver.set_page_load_timeout(TIMEOUT)
         return driver

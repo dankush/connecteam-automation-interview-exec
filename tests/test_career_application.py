@@ -7,7 +7,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from pages.home_page import HomePage
 from pages.careers_page import CareersPage
 from pages.position_page import PositionPage
-from config.config import Config  # Import the Config class directly
+from config.config import DEFAULT_FIRST_NAME, DEFAULT_LAST_NAME, DEFAULT_EMAIL, DEFAULT_PHONE, CV_FILE_PATH
 
 @pytest.mark.usefixtures("driver")
 class TestCareerApplication:
@@ -25,7 +25,6 @@ class TestCareerApplication:
         self.careers_page = CareersPage(driver)
         self.position_page = PositionPage(driver)
         self.driver = driver
-        self.config = Config()  # Create config instance
 
     def _take_screenshot(self, name: str) -> None:
         """Take a screenshot of Fix errorthe current page.
@@ -61,10 +60,11 @@ class TestCareerApplication:
             time.sleep(2)
             
             # Step 3: Select R&D from the left dropdown
-            self.logger.info(f"Step 3: Selecting department: {self.config.TARGET_DEPARTMENT}")
-            if not self.careers_page.select_department(self.config.TARGET_DEPARTMENT):
+            from config.config import DEFAULT_TARGET_DEPARTMENT
+            self.logger.info(f"Step 3: Selecting department: {DEFAULT_TARGET_DEPARTMENT}")
+            if not self.careers_page.select_department(DEFAULT_TARGET_DEPARTMENT):
                 self._take_screenshot("department_selection_failed")
-                pytest.skip(f"No {self.config.TARGET_DEPARTMENT} positions currently visible")
+                pytest.skip(f"No {DEFAULT_TARGET_DEPARTMENT} positions currently visible")
             
             # Wait for department filter to apply
             time.sleep(1)
@@ -73,7 +73,7 @@ class TestCareerApplication:
             positions = self.careers_page.get_applyable_positions()
             if not positions:
                 self._take_screenshot("no_positions_found")
-                pytest.skip(f"No {self.config.TARGET_DEPARTMENT} positions available to apply for")
+                pytest.skip(f"No {DEFAULT_TARGET_DEPARTMENT} positions available to apply for")
             
             total_positions = len(positions)
             self.logger.info(f"Found {total_positions} R&D positions to process")
@@ -102,13 +102,14 @@ class TestCareerApplication:
                     
                     # Use the CV file path from config as specified in instructions
                     # Do not submit the form as per instructions
+                    from config.config import DEFAULT_FIRST_NAME, DEFAULT_LAST_NAME, DEFAULT_EMAIL, DEFAULT_PHONE, CV_FILE_PATH
                     result = self.careers_page.apply_for_position(
                         position=fresh_positions[i],
-                        first_name=self.config.FIRST_NAME,
-                        last_name=self.config.LAST_NAME,
-                        email=self.config.EMAIL,
-                        phone=self.config.PHONE,
-                        cv_path=self.config.CV_FILE_PATH
+                        first_name=DEFAULT_FIRST_NAME,
+                        last_name=DEFAULT_LAST_NAME,
+                        email=DEFAULT_EMAIL,
+                        phone=DEFAULT_PHONE,
+                        cv_path=CV_FILE_PATH
                     )
                     
                     if result:
