@@ -72,16 +72,3 @@ def validate_config():
     # Add other checks as needed (e.g., TIMEOUT > 0)
     if TIMEOUT <= 0:
         logging.warning(f"TIMEOUT value ({TIMEOUT}) should likely be positive.")
-
-
-# --- Example Usage (in your test setup or main script) ---
-# import config
-#
-# def run_tests():
-#     logging.basicConfig(level=logging.INFO) # Configure logging
-#     config.setup_directories()
-#     config.validate_config()
-#     # ... proceed with test execution using config.BASE_URL etc.
-#
-# if __name__ == "__main__":
-#      run_tests()

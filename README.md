@@ -97,7 +97,6 @@ A production-ready Selenium-based QA automation framework for testing the Connec
 ## Design Patterns Used
 
 - **Page Object Model:** All UI actions/locators in `pages/`
-- **Singleton:** Configuration loader ensures single config instance.
 - **Factory:** Browser/WebDriver instantiation.
 - **Strategy:** Element finding and waiting strategies in `utils/`.
 
